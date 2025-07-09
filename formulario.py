@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import json
 
 # ========== CONFIGURAÇÕES DE ACESSO ========== #
 st.set_page_config(page_title="Gerenciador de Tarefas", layout="wide")
@@ -12,7 +13,8 @@ SCOPE = ['https://spreadsheets.google.com/feeds',
 # 🔐 Autenticando com o Google Sheets
 def autenticar_google_sheets():
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_name('credenciais.json', SCOPE)
+        credentials_info = json.loads(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_info, SCOPE)
         client = gspread.authorize(creds)
         sheet = client.open_by_key('1ZzMXgfnGvplabe9eNDCUXUbjuCXLieSgbpPUqAtBYOU').sheet1  
         return sheet

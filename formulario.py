@@ -2,19 +2,21 @@ import streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import json
 
+responsaveis = {
+    "aleframos62@gmail.com": "abcd1234",
+    "hagata@gmail.com": "abcde123"
+}
 # ========== CONFIGURAÇÕES DE ACESSO ========== #
 st.set_page_config(page_title="Gerenciador de Tarefas", layout="wide")
 
 SCOPE = ['https://spreadsheets.google.com/feeds',
          'https://www.googleapis.com/auth/drive']
 
-# 🔐 Autenticando com o Google Sheets
+# 🔐 Autenticando com o Google Sheets Desenvolvimento
 def autenticar_google_sheets():
     try:
-        credentials_info = json.loads(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_info, SCOPE)
+        creds = ServiceAccountCredentials.from_json_keyfile_name('credenciais.json', SCOPE)
         client = gspread.authorize(creds)
         sheet = client.open_by_key('1ZzMXgfnGvplabe9eNDCUXUbjuCXLieSgbpPUqAtBYOU').sheet1  
         return sheet
@@ -35,7 +37,7 @@ def atualizar_linha(sheet, numero_hierarquico, nova_linha):
     registros = sheet.get_all_records()
     for idx, row in enumerate(registros, start=2):  # header é linha 1
         if str(row["Número Hierárquico"]).strip() == str(numero_hierarquico).strip():
-            sheet.update(f"A{idx}:E{idx}", [nova_linha])
+            sheet.update(f"A{idx}:F{idx}", [nova_linha])
             return True
     return False
 
@@ -53,7 +55,7 @@ def parse_percent_string(percent_str):
         return 0.0
 
 # ========== INTERFACE STREAMLIT ========== #
-st.title("Gerenciador de Tarefas")
+st.title("📊 Gerenciador de Tarefas com Google Sheets")
 
 sheet = autenticar_google_sheets()
 if not sheet:
@@ -79,7 +81,7 @@ aba = st.sidebar.radio("Escolha uma opção:", ["Inserir Tarefa", "Editar Tarefa
 
 # ========== FORMULÁRIO DE INSERÇÃO ========== #
 if aba == "Inserir Tarefa":
-    st.header("➕ Inserir Tarefa")
+    st.header("➕ Inserir Nova Tarefa")
     with st.form(key="inserir_form"):
         num_hierarquico = st.text_input("Número Hierárquico")
         nome_tarefa = st.text_input("Nome da Tarefa")
@@ -99,23 +101,16 @@ if aba == "Inserir Tarefa":
                 inserir_linha(sheet, nova_linha)
                 st.success("✅ Tarefa inserida com sucesso!")
                 st.rerun()
-
 # ========== FORMULÁRIO DE EDIÇÃO ========== #
 elif aba == "Editar Tarefa":
-    st.header("✏️ Editar Tarefa")
-    
-    # Cria lista para mostrar no selectbox (Número - Nome)
+    st.header("✏️ Editar Tarefa Existente")
+
     opcoes = [""] + [
         f"{num} - {nome}" 
         for num, nome in zip(dados_df["Número Hierárquico"].astype(str), dados_df["Nome da Tarefa"])
     ]
-
-    # Mapeia string exibida para o número hierárquico (chave para filtro)
-    mapa_numero = {
-        f"{num} - {nome}": str(num) 
-        for num, nome in zip(dados_df["Número Hierárquico"].astype(str), dados_df["Nome da Tarefa"])
-    }
-
+    mapa_numero = {f"{num} - {nome}": str(num) for num, nome in zip(dados_df["Número Hierárquico"].astype(str), dados_df["Nome da Tarefa"])}
+    
     selecionado_exibido = st.selectbox("Selecione a Tarefa:", opcoes)
 
     if selecionado_exibido and selecionado_exibido in mapa_numero:
@@ -123,13 +118,14 @@ elif aba == "Editar Tarefa":
         tarefa = dados_df[dados_df["Número Hierárquico"].astype(str) == selecionado].iloc[0]
 
         with st.form(key="editar_form"):
+            # Campos da tarefa
             nome_tarefa = st.text_input("Nome da Tarefa", tarefa["Nome da Tarefa"])
             perc_concluida = st.number_input(
                 "% Concluída", 
                 min_value=0.0, 
                 max_value=100.0, 
                 step=0.1,
-                value=parse_percent_string(tarefa["% Concluída"]),  
+                value=parse_percent_string(tarefa["% Concluída"]), 
                 format="%.1f"
             )
             perc_previsto = st.number_input(
@@ -137,22 +133,40 @@ elif aba == "Editar Tarefa":
                 min_value=0.0, 
                 max_value=100.0, 
                 step=0.1,
-                value=parse_percent_string(tarefa["% Prevista"]),  
+                value=parse_percent_string(tarefa["% Prevista"]), 
                 format="%.1f"
             )
             duracao = st.number_input("Duração (em dias)", min_value=0, value=int(tarefa["Duração"]))
 
+            # 🔐 Autenticação
+            st.markdown("#### 🔐 Identificação do Responsável")
+            email = st.text_input("Email")
+            senha = st.text_input("Senha", type="password")
+
             atualizar = st.form_submit_button("Atualizar")
+
             if atualizar:
-                nova_linha = [selecionado, nome_tarefa, f"{perc_concluida:.1f}", f"{perc_previsto:.1f}", duracao]
-                sucesso = atualizar_linha(sheet, selecionado, nova_linha)
-                if sucesso:
-                    st.success("✅ Tarefa atualizada com sucesso!")
-                    st.rerun()
+                if email in responsaveis and responsaveis[email] == senha:
+                    from datetime import datetime
+                    agora = datetime.now().strftime("%H:%M %d/%m/%Y")
+                    responsavel = f"{email} {agora}"
+
+                    # Garante que a coluna "Responsável" exista
+                    if "Responsável" not in dados_df.columns:
+                        st.error("A coluna 'Responsável' não foi encontrada na planilha.")
+                        st.stop()
+
+                    # Constrói nova linha com "Responsável"
+                    nova_linha = [selecionado, nome_tarefa, f"{perc_concluida:.1f}", f"{perc_previsto:1f}", duracao, responsavel]
+                    
+                    sucesso = atualizar_linha(sheet, selecionado, nova_linha)
+                    if sucesso:
+                        st.success("✅ Tarefa atualizada com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Erro ao atualizar.")
                 else:
-                    st.error("❌ Erro ao atualizar.")
-    else:
-        st.info("Selecione uma tarefa para editar.")
+                    st.error("❌ Email ou senha incorretos.")
 
 # ========== VISUALIZAÇÃO DE DADOS ========== #
 elif aba == "Visualizar Tarefas":
@@ -160,10 +174,10 @@ elif aba == "Visualizar Tarefas":
     if not dados_df.empty:
         dados_formatados = dados_df.copy()
         dados_formatados["% Concluída"] = (
-            dados_formatados["% Concluída"].apply(parse_percent_string) 
+            dados_formatados["% Concluída"].apply(parse_percent_string)
         ).round(1).astype(str) + "%"
         dados_formatados["% Prevista"] = (
-            dados_formatados["% Prevista"].apply(parse_percent_string) 
+            dados_formatados["% Prevista"].apply(parse_percent_string)
         ).round(1).astype(str) + "%"
         st.dataframe(dados_formatados, use_container_width=True)
     else:

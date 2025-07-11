@@ -160,7 +160,7 @@ elif aba == "Editar Tarefa":
                         st.stop()
 
                     # Constrói nova linha com "Responsável"
-                    nova_linha = [selecionado, nome_tarefa, f"{perc_concluida:.1f}", f"{perc_previsto:1f}", duracao, responsavel]
+                    nova_linha = [selecionado, nome_tarefa, f"{perc_concluida:.1f}", f"{perc_previsto:.1f}", duracao, responsavel]
                     
                     sucesso = atualizar_linha(sheet, selecionado, nova_linha)
                     if sucesso:

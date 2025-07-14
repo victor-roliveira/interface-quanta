@@ -58,7 +58,7 @@ def parse_percent_string(percent_str):
         return 0.0
 
 # ========== INTERFACE STREAMLIT ========== #
-st.title("📊 Gerenciador de Tarefas com Google Sheets")
+st.title("Gerenciador de Tarefas")
 
 sheet = autenticar_google_sheets()
 if not sheet:
@@ -106,7 +106,7 @@ if aba == "Inserir Tarefa":
                 st.rerun()
 # ========== FORMULÁRIO DE EDIÇÃO ========== #
 elif aba == "Editar Tarefa":
-    st.header("✏️ Editar Tarefa Existente")
+    st.header("✏️ Editar Tarefa")
 
     opcoes = [""] + [
         f"{num} - {nome}" 

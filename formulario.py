@@ -3,6 +3,8 @@ import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
+from datetime import datetime
+import pytz
 
 responsaveis = {
     "aleframos62@gmail.com": "abcd1234",
@@ -150,8 +152,9 @@ elif aba == "Editar Tarefa":
 
             if atualizar:
                 if email in responsaveis and responsaveis[email] == senha:
-                    from datetime import datetime
-                    agora = datetime.now().strftime("%H:%M %d/%m/%Y")
+
+                    fuso_brasilia = pytz.timezone("America/Sao_Paulo")
+                    agora = datetime.now(fuso_brasilia).strftime("%H:%M %d/%m/%Y")
                     responsavel = f"{email} {agora}"
 
                     # Garante que a coluna "Responsável" exista
@@ -168,8 +171,9 @@ elif aba == "Editar Tarefa":
                         st.rerun()
                     else:
                         st.error("❌ Erro ao atualizar.")
-                else:
-                    st.error("❌ Email ou senha incorretos.")
+            else:
+                st.error("❌ Email ou senha incorretos.")
+
 
 # ========== VISUALIZAÇÃO DE DADOS ========== #
 elif aba == "Visualizar Tarefas":

@@ -151,30 +151,30 @@ elif aba == "Editar Tarefa":
             atualizar = st.form_submit_button("Atualizar")
 
             if atualizar:
-                if email in responsaveis and responsaveis[email] == senha:
+                if not email or not senha:
+                    st.warning("Por favor, preencha o email e a senha.")
+                elif email in responsaveis and responsaveis[email] == senha:
+                    from datetime import datetime
+                    import pytz
 
                     fuso_brasilia = pytz.timezone("America/Sao_Paulo")
                     agora = datetime.now(fuso_brasilia).strftime("%H:%M %d/%m/%Y")
                     responsavel = f"{email} {agora}"
 
-                    # Garante que a coluna "Responsável" exista
                     if "Responsável" not in dados_df.columns:
                         st.error("A coluna 'Responsável' não foi encontrada na planilha.")
                         st.stop()
 
-                    # Constrói nova linha com "Responsável"
                     nova_linha = [selecionado, nome_tarefa, f"{perc_concluida:.1f}", f"{perc_previsto:.1f}", duracao, responsavel]
-                    
+
                     sucesso = atualizar_linha(sheet, selecionado, nova_linha)
                     if sucesso:
                         st.success("✅ Tarefa atualizada com sucesso!")
                         st.rerun()
                     else:
                         st.error("❌ Erro ao atualizar.")
-            else:
-                st.error("❌ Email ou senha incorretos.")
-
-
+                else:
+                    st.error("❌ Email ou senha incorretos.")
 # ========== VISUALIZAÇÃO DE DADOS ========== #
 elif aba == "Visualizar Tarefas":
     st.header("📋 Visualização de Tarefas")

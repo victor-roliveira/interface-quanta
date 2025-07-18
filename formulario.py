@@ -3,7 +3,7 @@ import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
-from datetime import datetime
+from datetime import datetime, date
 import pytz
 
 responsaveis = {

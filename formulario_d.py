@@ -6,7 +6,7 @@ from datetime import datetime, date
 import pytz
 
 # ========== CONFIGURAÇÕES ========== #
-st.set_page_config(page_title="Gerenciador de Tarefas", layout="wide")
+st.set_page_config(page_title="Gerenciador de Planilha", layout="wide")
 
 SCOPE = ['https://spreadsheets.google.com/feeds',
          'https://www.googleapis.com/auth/drive']
@@ -56,7 +56,7 @@ def parse_percent_string(percent_str):
     except:
         return 0.0
 
-st.title("Gerenciador de Tarefas")
+st.title("Gerenciador de Planilha")
 
 sheet = autenticar_google_sheets()
 if not sheet:
@@ -133,7 +133,10 @@ elif aba == "Editar Tarefa":
     if email:
         # Carregar dados aqui para garantir que estão atualizados no momento da seleção
         dados_df = carregar_dados(sheet) # Carrega os dados aqui novamente
-        df_usuario = dados_df[dados_df["Responsável"].astype(str).str.contains(email, case=False, na=False)]
+        # df_usuario = dados_df[dados_df["Responsável"].astype(str).str.contains(email, case=False, na=False)]
+        #dados_df["% Concluída"] = dados_df["% Concluída"].apply(parse_percent_string)
+
+        df_usuario = dados_df[(dados_df["Responsável"].astype(str).str.contains(email, case=False, na=False)) & (dados_df["% Concluída"] < 100.0)]
 
         if df_usuario.empty:
             st.warning("Nenhuma tarefa encontrada para este email.")
@@ -168,11 +171,12 @@ elif aba == "Editar Tarefa":
                                                  value=parse_percent_string(tarefa["% Prevista"]), format="%.1f")
                 duracao = st.number_input("Duração (em dias)", min_value=0, value=int(tarefa["Duração"]))
                 
-                inicio_dt = tarefa["Início"].date() if pd.notnull(tarefa["Início"]) and isinstance(tarefa["Início"], pd.Timestamp) else None
-                termino_dt = tarefa["Término"].date() if pd.notnull(tarefa["Término"]) and isinstance(tarefa["Término"], pd.Timestamp) else None
-                
-                inicio = st.date_input("Data de Início", value=inicio_dt)
-                termino = st.date_input("Data de Término", value=termino_dt)
+                # Formatando as datas para exibição
+                inicio_str = tarefa["Início"].strftime("%d/%m/%Y") if pd.notnull(tarefa["Início"]) else ""
+                termino_str = tarefa["Término"].strftime("%d/%m/%Y") if pd.notnull(tarefa["Término"]) else ""
+
+                st.text_input("Data de Início", value=inicio_str, disabled=True)
+                st.text_input("Data de Término", value=termino_str, disabled=True)
 
                 atualizar = st.form_submit_button("Atualizar")
 
@@ -195,6 +199,7 @@ elif aba == "Editar Tarefa":
                     inicio_real_str = inicio_real_para_salvar.strftime("%d/%m/%Y") if inicio_real_para_salvar else ""
                     termino_real_str = termino_real_para_salvar.strftime("%d/%m/%Y") if termino_real_para_salvar else ""
 
+                    # As datas "Início" e "Término" originais são mantidas
                     nova_linha_valores = [
                         selecionado,
                         nome_tarefa,
@@ -202,8 +207,8 @@ elif aba == "Editar Tarefa":
                         f"{perc_previsto:.1f}",
                         duracao,
                         responsavel,
-                        inicio.strftime("%d/%m/%Y"),
-                        termino.strftime("%d/%m/%Y"),
+                        inicio_str, # Mantendo o valor original de inicio
+                        termino_str, # Mantendo o valor original de termino
                         inicio_real_str,
                         termino_real_str
                     ]

@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 import json
 from datetime import datetime, date
 import pytz
 import re
+import os
 
 responsaveis = {
     "aleframos62@gmail.com": "abcd1234",
@@ -15,21 +16,36 @@ responsaveis = {
 # ========== CONFIGURAÇÕES DE ACESSO ========== #
 st.set_page_config(page_title="Gerenciador de Tarefas", layout="wide")
 
+lista_autores = ["ALEXANDRE", "ARQ QUANTA", "BBRUNO MATHIAS", "BRUNO ALMEIDA", "BRUNO MATHIAS", "CAMILA", "CAROLINA", "GABRIEL M", "GABRIEL M. / MATHEUS F./CAROL", "GABRIEL MEURER", "IVANESSA", "KAYKE CHELI", "LEO", "MATHEUS F.", "MATHEUS FERREIRA", "TARCISIO", "TERCEIRIZADO - CAURIN", "TERCEIRIZADO - TEKRA", "THATY", "THATY E CAROL", "VANESSA", "VINICIUS COORD", "VITINHO", "WANDER"]
+
 SCOPE = ['https://spreadsheets.google.com/feeds',
          'https://www.googleapis.com/auth/drive']
 
 # 🔐 Autenticando com o Google Sheets PRODUÇÃO
 def autenticar_google_sheets():
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], SCOPE)
+        # Pega o JSON da variável de ambiente
+        creds_json = os.getenv("GOOGLE_SHEETS_CREDENTIALS")
+        if not creds_json:
+            st.error("Variável GOOGLE_SHEETS_CREDENTIALS não encontrada.")
+            return None
+
+        # Converte a string JSON em dict
+        credentials_info = json.loads(creds_json)
+
+        # Cria credenciais usando google.oauth2 (mais moderno)
+        creds = Credentials.from_service_account_info(credentials_info, scopes=SCOPE)
+
+        # Autoriza o cliente gspread
         client = gspread.authorize(creds)
-        sheet = client.open_by_key('1ZzMXgfnGvplabe9eNDCUXUbjuCXLieSgbpPUqAtBYOU').sheet1
+
+        # Abre a planilha pelo ID e pega a primeira aba
+        sheet = client.open_by_key('1ZzMXgfnGvplabe9eNDCUXUbjuCXLieSgbpPUqAtBYOU').sheet1  
         return sheet
+
     except Exception as e:
         st.error(f"Erro ao autenticar com o Google Sheets: {e}")
         return None
-    
-lista_autores = ["ALEXANDRE", "ARQ QUANTA", "BBRUNO MATHIAS", "BRUNO ALMEIDA", "BRUNO MATHIAS", "CAMILA", "CAROLINA", "GABRIEL M", "GABRIEL M. / MATHEUS F./CAROL", "GABRIEL MEURER", "IVANESSA", "KAYKE CHELI", "LEO", "MATHEUS F.", "MATHEUS FERREIRA", "TARCISIO", "TERCEIRIZADO - CAURIN", "TERCEIRIZADO - TEKRA", "THATY", "THATY E CAROL", "VANESSA", "VINICIUS COORD", "VITINHO", "WANDER"]
 
 colunas_esperadas = [
     "% CONCLUIDA", "MEMORIAL DE CÁLCULO", "MEMORIAL DE DESCRITIVO", "EDT", "OS",

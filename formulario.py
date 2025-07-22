@@ -216,7 +216,7 @@ if aba == "Editar Tarefa":
                         (dados_df["OS"].astype(str) == str(tarefa["OS"])) &
                         (dados_df["EDT"].astype(str) == str(tarefa["EDT"])) &
                         (dados_df["NOME DA TAREFA"].astype(str) == str(tarefa["NOME DA TAREFA"]))
-                )                    
+                )                   
                     # Verifica se alguma linha foi encontrada
                 if not dados_df[matched_rows_mask].empty:
                         # Pega o primeiro índice (0-based) do DataFrame correspondente à tarefa
@@ -232,6 +232,10 @@ if aba == "Editar Tarefa":
                 st.info(f"Tentando atualizar a linha na planilha: **{linha_idx_para_atualizar}**")
 
                 perc_concluida_antiga = float(tarefa["% CONCLUIDA"])
+                inicio_real_antigo_value = pd.to_datetime(tarefa["INÍCIO REAL"], errors='coerce')
+                
+                # Verifica se 'INÍCIO REAL' antigo tinha um valor válido e não era nulo
+                inicio_real_antigo_preenchido = pd.notnull(inicio_real_antigo_value)
 
                 inicio_contratual_valor = pd.to_datetime(tarefa["INÍCIO CONTRATUAL"], errors='coerce')
                 inicio_contratual_data = inicio_contratual_valor.date() if pd.notnull(inicio_contratual_valor) else None
@@ -239,7 +243,7 @@ if aba == "Editar Tarefa":
                 termino_contratual_valor = pd.to_datetime(tarefa["TÉRMINO CONTRATUAL"], errors='coerce')
                 termino_contratual_data = termino_contratual_valor.date() if pd.notnull(termino_contratual_valor) else None
                 
-                inicio_real_antigo = pd.to_datetime(tarefa["INÍCIO REAL"], errors='coerce').date() if pd.notnull(pd.to_datetime(tarefa["INÍCIO REAL"], errors='coerce')) else None
+                inicio_real_antigo = inicio_real_antigo_value.date() if inicio_real_antigo_preenchido else None
                 termino_real_antigo = pd.to_datetime(tarefa["TÉRMINO REAL"], errors='coerce').date() if pd.notnull(pd.to_datetime(tarefa["TÉRMINO REAL"], errors='coerce')) else None
                 data_revisao_doc_antiga = pd.to_datetime(tarefa["DATA REVISÃO DOC"], errors='coerce').date() if pd.notnull(pd.to_datetime(tarefa["DATA REVISÃO DOC"], errors='coerce')) else None
                 data_revisao_projeto_antiga = pd.to_datetime(tarefa["DATA REVISÃO PROJETO"], errors='coerce').date() if pd.notnull(pd.to_datetime(tarefa["DATA REVISÃO PROJETO"], errors='coerce')) else None
@@ -284,6 +288,12 @@ if aba == "Editar Tarefa":
                     atualizar = st.form_submit_button("Atualizar")
 
                     if atualizar:
+                        # --- Lógica de Validação para % CONCLUIDA e INÍCIO REAL ---
+                        if perc_concluida_antiga > 0 and perc_concluida == 0 and inicio_real_antigo_preenchido:
+                            st.error("❌ Não é possível voltar o '% CONCLUIDA' para 0% se a tarefa já teve avanço e o 'INÍCIO REAL' foi preenchido.")
+                            st.stop()
+                        # --- Fim da Lógica de Validação ---
+
                         fuso_brasilia = pytz.timezone("America/Sao_Paulo")
                         agora_completa = datetime.now(fuso_brasilia) 
                         agora_data = agora_completa.date() 

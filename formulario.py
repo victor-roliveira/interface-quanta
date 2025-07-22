@@ -327,9 +327,24 @@ elif aba == "Editar Tarefa":
             if selecionado_exibido:
                 indice_no_df_usuario = mapa_string_para_indice_df[selecionado_exibido]
                 tarefa = df_usuario.iloc[indice_no_df_usuario].copy()
-                
-                # O índice da linha na planilha do Google Sheets é o índice do DataFrame + 2 (cabeçalho + 1-based index)
-                linha_idx_para_atualizar = dados_df.index[dados_df["OS"] == tarefa["OS"]].tolist()[0] + 2
+
+                 # O índice da linha na planilha do Google Sheets é o índice do DataFrame + 2 (cabeçalho + 1-based index)
+                # CORREÇÃO: Usar a combinação única de OS, EDT e NOME DA TAREFA para encontrar a linha
+                # Primeiro, encontre a linha no DataFrame completo (dados_df) que corresponde exatamente à tarefa selecionada
+                matched_row_in_full_df = dados_df[
+                    (dados_df["OS"] == tarefa["OS"]) &
+                    (dados_df["EDT"] == tarefa["EDT"]) &
+                    (dados_df["NOME DA TAREFA"] == tarefa["NOME DA TAREFA"])
+                ]
+
+                if not matched_row_in_full_df.empty:
+                        # Pega o índice do DataFrame (0-based) da linha correspondente
+                        df_index = matched_row_in_full_df.index[0]
+                        # Converte para o índice da linha na planilha (1-based, +1 para cabeçalho, +1 para converter de 0-based para 1-based)
+                        linha_idx_para_atualizar = df_index + 2
+                else:
+                        st.error("Erro: Tarefa selecionada não encontrada na planilha principal. Por favor, recarregue os dados.")
+                        st.stop()
 
 
                 st.info(f"Tentando atualizar a linha na planilha: **{linha_idx_para_atualizar}**")

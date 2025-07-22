@@ -104,6 +104,7 @@ def carregar_dados(sheet):
     # --- Fim da nova parte ---
 
     return df
+
 def get_column_letter(n):
     """Converte um número de coluna em letra do Google Sheets (A, B, ..., Z, AA, AB, etc.)"""
     result = ""
@@ -124,6 +125,29 @@ def atualizar_linha(sheet, idx, nova_linha_valores):
         st.error(f"Erro ao atualizar a linha: {e}. Verifique o console para mais detalhes.")
         return False
 
+def inserir_linha(sheet, nova_linha):
+    nova_linha_str = [str(val) if val is not None else '' for val in nova_linha]
+    
+    try:
+        try:
+            sheet.acell('A1') 
+        except Exception as e:
+            print(f"Aviso: Não foi possível ler A1 antes de append_row: {e}")
+
+        result = sheet.append_row(nova_linha_str)
+        updated_range = result.get('updates', {}).get('updatedRange', '')
+        
+        line_number = None
+        if updated_range:
+            match = re.search(r'(\d+)$', updated_range)
+            if match:
+                line_number = int(match.group(1))
+
+        return line_number
+    except Exception as e:
+        st.error(f"Erro ao inserir a linha: {e}")
+        return None
+
 def parse_percent_string(percent_str):
     try:
         if isinstance(percent_str, (int, float)):
@@ -135,6 +159,7 @@ def parse_percent_string(percent_str):
         return 0.0
     except ValueError:
         return 0.0
+
 
 st.title("Gerenciador de Planilha")
 
@@ -154,9 +179,112 @@ if colunas_faltando:
     st.warning(f"⚠️ As seguintes colunas estão faltando na sua lista de 'colunas_esperadas' ou na planilha: {', '.join(colunas_faltando)}. Por favor, adicione-as.")
 del temp_df_check
 
-aba = st.sidebar.radio("Escolha uma opção:", ["Editar Tarefa", "Visualizar Tarefas"])
+aba = st.sidebar.radio("Escolha uma opção:", ["Inserir Tarefa", "Editar Tarefa", "Visualizar Tarefas"])
 
-if aba == "Editar Tarefa":
+# --- Seção Inserir Tarefa ---
+if aba == "Inserir Tarefa":
+    st.header("➕ Inserir Nova Tarefa")
+    dados_df = carregar_dados(sheet)
+    with st.form(key="inserir_form"):
+        perc_concluida = st.number_input("% CONCLUIDA", min_value=0.0, max_value=100.0, step=0.1, format="%.1f", value=0.0)
+        memorial_calculo = st.text_input("MEMORIAL DE CALCULO")
+        memorial_descritivo = st.text_input("MEMORIAL DE DESCRITIVO")
+        num_hierarquico = st.text_input("EDT (Número Hierárquico)", help="Este campo deve ser único para cada tarefa, em combinação com a OS e Nome da Tarefa.")
+        os = st.text_input("OS")
+        produto = st.text_input("PRODUTO")
+        nome_os = st.text_input("NOME DA OS")
+        tipo_projeto = st.text_input("TIPO DE PROJETO")
+        nome_tarefa = st.text_input("NOME DA TAREFA")
+        disciplina = st.text_input("DISCIPLINA")
+        subdisciplina = st.text_input("SUBDISCIPLINA")
+        autor = st.selectbox("AUTOR", options=[""] + sorted(lista_autores)) 
+        responsavel_tecnico = st.text_input("RESPONSAVEL TÉCNICO (Lider)")
+        inicio_contratual = st.date_input("INÍCIO CONTRATUAL", value=date.today())
+        termino_contratual = st.date_input("TÉRMINO CONTRATUAL", value=date.today())
+        
+        data_revisao_doc = None
+        data_revisao_projeto = None
+        
+        duracao_planejada = st.number_input("DURAÇÃO PLANEJADA (DIAS)", min_value=0)
+        duracao_real = st.number_input("DURAÇÃO REAL (DIAS)", min_value=0)
+        avanco_planejado = st.number_input("% AVANÇO PLANEJADO", min_value=0.0, max_value=100.0, step=0.1, format="%.1f", value=0.0)
+        avanco_real = st.number_input("% AVANÇO REAL", min_value=0.0, max_value=100.0, step=0.1, format="%.1f", value=0.0)
+        hh_orcado = st.text_input("HH Orçado")
+        bcws_hh = st.text_input("BCWS_HH")
+        bcwp_hh = st.text_input("BCWP_HH")
+        acwp_hh = st.text_input("ACWP_HH")
+        spi_hh = st.text_input("SPI_HH")
+        cpi_hh = st.text_input("CPI_HH")
+        eac_hh = st.text_input("EAC_HH")
+        observacoes = st.text_input("OBSERVAÇÕES")
+
+        submit_button = st.form_submit_button("Salvar")
+
+        if submit_button:
+            if not num_hierarquico or not nome_tarefa or not os:
+                st.warning("Preencha os campos 'EDT', 'NOME DA TAREFA' e 'OS' (obrigatórios).")
+            elif autor == "": 
+                st.warning("Por favor, selecione um Autor.")
+            elif any((dados_df["EDT"] == num_hierarquico) & 
+                             (dados_df["NOME DA TAREFA"].str.lower() == nome_tarefa.lower()) &
+                             (dados_df["OS"].str.lower() == os.lower())):
+                st.error("Já existe uma tarefa com esta combinação de EDT, Nome da Tarefa e OS.")
+            else:
+                fuso_brasilia = pytz.timezone("America/Sao_Paulo")
+                agora = datetime.now(fuso_brasilia).date()
+
+                inicio_real_para_salvar = agora if perc_concluida > 0.0 else None
+                termino_real_para_salvar = agora if perc_concluida == 100.0 else None
+
+                data_revisao_doc_para_salvar = None
+                data_revisao_projeto_para_salvar = None
+
+                valores_para_salvar_dict = {
+                    "% CONCLUIDA": f"{perc_concluida:.1f}",
+                    "MEMORIAL DE CÁLCULO": memorial_calculo,
+                    "MEMORIAL DE DESCRITIVO": memorial_descritivo,
+                    "EDT": num_hierarquico,
+                    "OS": os,
+                    "PRODUTO": produto,
+                    "NOME DA OS": nome_os,
+                    "TIPO DE PROJETO": tipo_projeto,
+                    "NOME DA TAREFA": nome_tarefa,
+                    "DISCIPLINA": disciplina,
+                    "SUBDISCIPLINA": subdisciplina,
+                    "AUTOR": autor,
+                    "RESPONSAVEL TÉCNICO (Lider)": responsavel_tecnico,
+                    "INÍCIO CONTRATUAL": inicio_contratual.strftime("%d/%m/%Y") if inicio_contratual else "",
+                    "TÉRMINO CONTRATUAL": termino_contratual.strftime("%d/%m/%Y") if termino_contratual else "",
+                    "INÍCIO REAL": inicio_real_para_salvar.strftime("%d/%m/%Y") if inicio_real_para_salvar else "",
+                    "TÉRMINO REAL": termino_real_para_salvar.strftime("%d/%m/%Y") if termino_real_para_salvar else "",
+                    "DATA REVISÃO DOC": data_revisao_doc_para_salvar.strftime("%d/%m/%Y") if data_revisao_doc_para_salvar else "",
+                    "DATA REVISÃO PROJETO": data_revisao_projeto_para_salvar.strftime("%d/%m/%Y") if data_revisao_projeto_para_salvar else "",
+                    "DURAÇÃO PLANEJADA (DIAS)": duracao_planejada,
+                    "DURAÇÃO REAL (DIAS)": duracao_real,
+                    "% AVANÇO PLANEJADO": f"{avanco_planejado:.1f}",
+                    "% AVANÇO REAL": f"{avanco_real:.1f}",
+                    "HH Orçado": hh_orcado,
+                    "BCWS_HH": bcws_hh,
+                    "BCWP_HH": bcwp_hh,
+                    "ACWP_HH": acwp_hh,
+                    "SPI_HH": spi_hh,
+                    "CPI_HH": cpi_hh,
+                    "EAC_HH": eac_hh,
+                    "OBSERVAÇÕES": observacoes
+                }
+                
+                nova_linha_dados = [str(valores_para_salvar_dict.get(col, "")) for col in colunas_esperadas]
+
+                linha_inserida = inserir_linha(sheet, nova_linha_dados)
+                if linha_inserida:
+                    st.success(f"✅ Tarefa inserida com sucesso na linha **{linha_inserida}** da planilha!")
+                    st.rerun()
+                else:
+                    st.error("❌ Erro ao inserir a tarefa. Verifique o console para mais detalhes.")
+
+
+# --- Seção Editar Tarefa ---
+elif aba == "Editar Tarefa":
     st.header("✏️ Editar Tarefa")
 
     autor_filtro = st.selectbox("Selecione o autor para filtrar suas tarefas:", [""] + sorted(lista_autores))
@@ -329,6 +457,7 @@ if aba == "Editar Tarefa":
                         else:
                             st.error("❌ Erro ao atualizar. Verifique o console para mais detalhes.")
 
+# --- Seção Visualizar Tarefas ---
 elif aba == "Visualizar Tarefas":
     st.header("📋 Visualização de Tarefas")
     dados_df = carregar_dados(sheet)

@@ -156,7 +156,7 @@ if colunas_faltando:
     st.warning(f"⚠️ As seguintes colunas estão faltando na sua lista de 'colunas_esperadas' ou na planilha: {', '.join(colunas_faltando)}. Por favor, adicione-as.")
 del temp_df_check
 
-aba = st.sidebar.radio("Escolha uma opção:", ["Inserir Tarefa", "Editar Tarefa", "Visualizar Tarefas"])
+aba = st.sidebar.radio("Escolha uma opção:", ["Editar Tarefa", "Visualizar Tarefas"])
 
 # --- Seção Editar Tarefa ---
 if aba == "Editar Tarefa":

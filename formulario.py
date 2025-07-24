@@ -14,7 +14,8 @@ responsaveis = {
 }
 
 # ========== CONFIGURAÇÕES DE ACESSO ========== #
-st.set_page_config(page_title="Gerenciador de Tarefas", layout="wide")
+st.set_page_config(page_title="Gerenciador de Tarefas", page_icon="icone-quanta.png",layout="wide")
+st.logo("logo-quanta-oficial.png", size="large")
 
 lista_autores = ["ALEXANDRE", "ARQ QUANTA", "BBRUNO MATHIAS", "BRUNO ALMEIDA", "BRUNO MATHIAS", "CAMILA", "CAROLINA", "GABRIEL M", "GABRIEL M. / MATHEUS F./CAROL", "GABRIEL MEURER", "IVANESSA", "KAYKE CHELI", "LEO", "MATHEUS F.", "MATHEUS FERREIRA", "TARCISIO", "TERCEIRIZADO - CAURIN", "TERCEIRIZADO - TEKRA", "THATY", "THATY E CAROL", "VANESSA", "VINICIUS COORD", "VITINHO", "WANDER"]
 
@@ -363,7 +364,6 @@ if aba == "Editar Tarefa":
                             st.rerun()
                         else:
                             st.error("❌ Erro ao atualizar. Verifique o console para mais detalhes.")
-
 # --- Seção Visualizar Tarefas ---
 elif aba == "Visualizar Tarefas":
     st.header("📋 Visualização de Tarefas")
